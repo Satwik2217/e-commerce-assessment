@@ -72,6 +72,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
+    // Verify requested size and color are supported by the product catalog
+    if (size && !product.sizes.includes(size)) {
+      return NextResponse.json(
+        { error: `Size '${size}' is not available for this product.` },
+        { status: 400 }
+      );
+    }
+
+    if (color && !product.colors.includes(color)) {
+      return NextResponse.json(
+        { error: `Color '${color}' is not available for this product.` },
+        { status: 400 }
+      );
+    }
+
     // Verify stock availability
     if (product.stockQuantity < quantity) {
       return NextResponse.json({ error: 'Not enough stock available' }, { status: 400 });

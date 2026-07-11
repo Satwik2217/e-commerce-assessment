@@ -16,7 +16,8 @@
     "db:reset": "prisma migrate reset",
     "db:studio": "prisma studio",
     "test": "node --require ts-node/register --test src/__tests__/utils.test.ts src/__tests__/auth-order.test.ts",
-    "prepare": "husky"
+    "prepare": "husky",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
@@ -43,6 +44,7 @@
     "@radix-ui/react-tooltip": "^1.2.12",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
+    "cloudinary": "^2.10.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.42.2",
     "lucide-react": "^1.24.0",

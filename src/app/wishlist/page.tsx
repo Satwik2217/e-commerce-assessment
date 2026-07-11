@@ -21,7 +21,7 @@ export default async function WishlistPage() {
       include: {
         product: true,
       },
-      orderBy: { id: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
 
     const formattedItems = wishlistItems.map((item) => ({

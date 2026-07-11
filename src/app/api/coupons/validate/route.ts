@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { validateCouponSchema } from '@/lib/validations';
 
 export async function POST(request: Request) {
   try {
@@ -10,15 +11,15 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { code, subtotal } = body;
-
-    if (!code) {
-      return NextResponse.json({ error: 'Coupon code is required' }, { status: 400 });
+    const result = validateCouponSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: result.error.flatten() },
+        { status: 400 }
+      );
     }
 
-    if (subtotal === undefined || subtotal === null) {
-      return NextResponse.json({ error: 'Subtotal is required' }, { status: 400 });
-    }
+    const { code, subtotal } = result.data;
 
     const coupon = await prisma.coupon.findUnique({
       where: { code: code.toUpperCase() },

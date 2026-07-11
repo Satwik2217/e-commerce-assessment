@@ -23,7 +23,7 @@ export async function GET() {
           },
         },
       },
-      orderBy: { id: 'desc' }, // Sort by date added (id is DateTime in our schema)
+      orderBy: { createdAt: 'desc' }, // Sort by date added (createdAt is DateTime in our schema)
     });
 
     const formattedList = wishlist.map((item) => ({

@@ -6,10 +6,10 @@ const protectedRoutes = ['/cart', '/checkout', '/orders', '/wishlist'];
 const adminRoutes = ['/admin'];
 const authRoutes = ['/login', '/register'];
 
-// In-memory rate limiting map (persists in Node.js middleware server context)
+// In-memory rate limiting map fallback
 const ipTrackers = new Map<string, { count: number; resetTime: number }>();
 
-function checkRateLimit(ip: string, limit: number, windowMs: number): boolean {
+function checkRateLimitInMem(ip: string, limit: number, windowMs: number): boolean {
   const now = Date.now();
 
   // Bounded memory prune: prevent memory leaks by cleaning expired entries when map grows large
@@ -41,6 +41,49 @@ function checkRateLimit(ip: string, limit: number, windowMs: number): boolean {
   return true;
 }
 
+// Check Redis if REDIS_URL and REDIS_TOKEN are configured (compatible with Serverless Edge Rest API e.g. Upstash)
+async function checkRedisRateLimit(ip: string, limit: number, windowMs: number): Promise<boolean> {
+  const redisUrl = process.env.REDIS_URL;
+  const redisToken = process.env.REDIS_TOKEN;
+
+  if (!redisUrl || !redisToken) {
+    return checkRateLimitInMem(ip, limit, windowMs);
+  }
+
+  try {
+    const key = `rate_limit:${ip}`;
+    const windowSecs = Math.ceil(windowMs / 1000);
+    const url = `${redisUrl.replace(/\/$/, '')}/pipeline`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${redisToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify([
+        ['INCR', key],
+        ['EXPIRE', key, windowSecs],
+      ]),
+      // Avoid blocking requests on slow Redis connection
+      signal: AbortSignal.timeout(2000),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const count = data[0]?.result;
+      if (count && count > limit) {
+        return false;
+      }
+      return true;
+    }
+  } catch (err) {
+    console.warn('Redis rate limiting failed, falling back to in-memory:', err);
+  }
+
+  return checkRateLimitInMem(ip, limit, windowMs);
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
@@ -50,7 +93,8 @@ export async function proxy(request: NextRequest) {
     const isStrict =
       pathname === '/api/checkout' || pathname === '/api/register' || pathname === '/api/reviews';
     const limit = isStrict ? 10 : 100; // 10 per min for checkout/register/reviews, 100 for others
-    const isAllowed = checkRateLimit(ip, limit, 60000);
+
+    const isAllowed = await checkRedisRateLimit(ip, limit, 60000);
 
     if (!isAllowed) {
       return NextResponse.json(
@@ -116,6 +160,8 @@ export async function proxy(request: NextRequest) {
 
   return response;
 }
+
+export default proxy;
 
 export const config = {
   matcher: [

@@ -59,6 +59,11 @@ export const orderStatusSchema = z.object({
   status: z.enum(['PLACED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED']),
 });
 
+export const validateCouponSchema = z.object({
+  code: z.string().min(1, 'Coupon code is required'),
+  subtotal: z.number().nonnegative('Subtotal must be a non-negative number'),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type ProductInput = z.infer<typeof productSchema>;
@@ -67,3 +72,4 @@ export type AddToCartInput = z.infer<typeof addToCartSchema>;
 export type UpdateCartInput = z.infer<typeof updateCartSchema>;
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export type OrderStatusInput = z.infer<typeof orderStatusSchema>;
+export type ValidateCouponInput = z.infer<typeof validateCouponSchema>;

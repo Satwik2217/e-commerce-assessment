@@ -64,7 +64,25 @@ NEXTAUTH_SECRET="dev-secret-change-in-production"
 
 ---
 
-### 4. Start the PostgreSQL Database
+### 4. Configure Cloudinary (Image Uploads)
+
+The admin panel uses **Cloudinary** for image uploads. To enable image uploading:
+
+1. Create a free account at [cloudinary.com](https://cloudinary.com)
+2. From your Cloudinary dashboard, copy your **Cloud Name**, **API Key**, and **API Secret**
+3. Add these to your `.env` file:
+
+```env
+CLOUDINARY_CLOUD_NAME="your-cloud-name"
+CLOUDINARY_API_KEY="your-api-key"
+CLOUDINARY_API_SECRET="your-api-secret"
+```
+
+Without Cloudinary credentials, the admin forms still work but image uploads will fail. Existing seeded product images (hosted on Unsplash) will continue to display correctly.
+
+---
+
+### 5. Start the PostgreSQL Database
 
 #### Option A: Using Docker (Recommended)
 If you have Docker installed, you can spin up the PostgreSQL database container with one command:
@@ -80,7 +98,7 @@ If you prefer running PostgreSQL natively on your machine:
 
 ---
 
-### 5. Install Dependencies & Seed Database
+### 6. Install Dependencies & Seed Database
 With your database running, install Node modules, sync the Prisma schemas, and run the database seeder to populate products, categories, coupons, and test user accounts:
 
 ```bash
@@ -96,7 +114,7 @@ npm run db:seed
 
 ---
 
-### 6. Start the Development Server
+### 7. Start the Development Server
 Launch the development server using Next.js Turbopack:
 ```bash
 npm run dev
@@ -131,6 +149,98 @@ npm run test
 
 ---
 
+## 🚀 Production Deployment
+
+### Live Demo
+**Deployment URL:** [https://shopmyuniform.vercel.app](https://shopmyuniform.vercel.app) *(update after deployment)*
+
+### Deployment Architecture
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│   Vercel CDN    │────▶│   Next.js 16     │────▶│  Neon PostgreSQL │
+│   (Frontend)    │     │   (Serverless)   │     │  (Database)      │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+                               │
+                               ▼
+                        ┌──────────────────┐
+                        │    Cloudinary     │
+                        │  (Image Hosting)  │
+                        └──────────────────┘
+```
+
+| Layer | Service | Purpose |
+|-------|---------|---------|
+| **Frontend & API** | Vercel | Next.js 16 serverless functions, static generation, edge proxy |
+| **Database** | Neon PostgreSQL | Serverless PostgreSQL with connection pooling (PgBouncer) |
+| **Images** | Cloudinary | Product/category image uploads and CDN delivery |
+| **Auth** | NextAuth.js v5 | JWT-based session management with role-based access |
+
+### Environment Variables (Production)
+
+Set these in your Vercel dashboard under **Settings → Environment Variables**:
+
+| Variable | Source | Description |
+|----------|--------|-------------|
+| `DATABASE_URL` | Neon Dashboard | Neon pooled connection string with `?pgbouncer=true` |
+| `NEXTAUTH_URL` | Your Vercel URL | `https://your-app.vercel.app` |
+| `NEXTAUTH_SECRET` | Generated | `openssl rand -base64 32` |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary Dashboard | Your cloud name |
+| `CLOUDINARY_API_KEY` | Cloudinary Dashboard | Your API key |
+| `CLOUDINARY_API_SECRET` | Cloudinary Dashboard | Your API secret |
+
+### Deployment Steps
+
+#### 1. Create a Neon Database
+1. Sign up at [neon.tech](https://neon.tech)
+2. Create a new project
+3. Copy the **pooled connection string** (it includes `?sslmode=require`)
+4. Append `&pgbouncer=true` to the URL
+
+#### 2. Push Code to GitHub
+```bash
+git add .
+git commit -m "Production deployment ready"
+git push origin main
+```
+
+#### 3. Deploy to Vercel
+1. Go to [vercel.com](https://vercel.com) → Import your GitHub repository
+2. Vercel auto-detects Next.js — keep default build settings
+3. Add all environment variables in Vercel dashboard
+4. Deploy
+
+#### 4. Seed the Production Database
+After first deploy, run the seed command:
+```bash
+# Via Vercel CLI
+npx vercel env pull .env.production.local
+npx prisma db push --skip-generate
+npx prisma db seed
+```
+
+Or run locally with the production `DATABASE_URL`:
+```bash
+DATABASE_URL="your-neon-url" npx prisma db push --skip-generate
+DATABASE_URL="your-neon-url" npx prisma db seed
+```
+
+### Post-Deployment Checklist
+- [ ] Landing page loads
+- [ ] Product catalog displays seeded images
+- [ ] User registration and login work
+- [ ] Admin login works (`admin@shop.com` / `admin123`)
+- [ ] Product CRUD operations function
+- [ ] Category CRUD operations function
+- [ ] Image uploads via Cloudinary work
+- [ ] Cart persistence across sessions
+- [ ] Checkout flow completes
+- [ ] Order history displays
+- [ ] Protected routes redirect to login
+- [ ] Admin routes block non-admin users
+
+---
+
 ## 🏗️ Folder Structure
 
 ```text
@@ -150,11 +260,24 @@ fashion-ecommerce/
 │   │   ├── ui/             # Dialog, Select, Sheet, Button primitives
 │   │   ├── layout/         # Header Navigation & Footer menus
 │   │   ├── products/       # Review forms, filters, catalogs, product actions
-│   │   └── admin/          # KPI dashboards and order status controllers
+│   │   └── admin/          # KPI dashboards, order status controllers, image upload
 │   ├── context/            # Context providers (CartProvider, ToastProvider)
 │   ├── lib/                # Database clients, utilities, and validations
+│   │   └── cloudinary.ts   # Cloudinary config, upload/delete helpers
 │   ├── types/              # TS definitions
 │   └── proxy.ts            # Next.js 16 route proxy (gating, rate-limiting)
 ├── package.json            # Scripts & project dependencies
 └── tsconfig.json           # TS configurations
 ```
+
+---
+
+## 🤖 LLM/AI Usage Disclosure
+
+This project was built and audited leveraging Advanced AI coding assistants (Gemini 3.5 Flash and Claude 3.5 Sonnet) under full human supervision:
+
+1. **Scaffolding and Boilerplate:** Used AI to scaffold initial App Router page layouts, Tailwind components, and Prisma DB schema fields.
+2. **Security & Concurrency Refactoring:** Instructed AI to secure the checkout API to perform coupon validation inside the transaction scope to prevent concurrency race conditions.
+3. **Database Rename Migration:** Leveraged AI to rename the Wishlist `id` DateTime column to `createdAt` and dynamically update references.
+4. **Next.js 16 proxy Conversion:** Used AI to migrate the deprecated middleware convention to the modern `src/proxy.ts` setup with Next.js 16-specific exports and write a conditional Redis rate limiter.
+5. **Testing suite:** AI aided in generating native test scripts to validate registration, checkout, and custom formatting helper functions.

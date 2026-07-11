@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCart } from '@/context/cart-provider';
 import { useSession } from 'next-auth/react';
@@ -13,14 +15,21 @@ import { Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function CartPage() {
+  const router = useRouter();
   const { status } = useSession();
   const { items, total, loading, updateItem, removeItem } = useCart();
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login?callbackUrl=/cart');
+    }
+  }, [status, router]);
 
   const shippingThreshold = 499;
   const shippingCost = total >= shippingThreshold || total === 0 ? 0 : 99;
   const grandTotal = total + shippingCost;
 
-  if (loading && items.length === 0) {
+  if (status === 'loading' || (loading && items.length === 0)) {
     return (
       <div className="container mx-auto px-4 py-10 sm:px-6 lg:px-8">
         <PageHeader title="Shopping Cart" description="Review your items before checkout" />

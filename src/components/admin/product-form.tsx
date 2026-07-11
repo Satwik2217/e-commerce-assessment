@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { DEFAULT_SIZES, DEFAULT_COLORS } from '@/lib/constants';
-import { Save, Package } from 'lucide-react';
+import { Save, Loader2 } from 'lucide-react';
+import { ImageUpload, ImageUploadHandle } from '@/components/admin/image-upload';
 
 interface ProductFormProps {
   categories: {
@@ -33,6 +34,8 @@ interface ProductFormProps {
 
 export function ProductForm({ categories, initialData }: ProductFormProps) {
   const router = useRouter();
+  const imageUploadRef = useRef<ImageUploadHandle>(null);
+
   const [name, setName] = useState(initialData?.name || '');
   const [description, setDescription] = useState(initialData?.description || '');
   const [price, setPrice] = useState(initialData ? Number(initialData.price).toString() : '');
@@ -47,7 +50,7 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
   );
   const [sizes, setSizes] = useState<string[]>(initialData?.sizes || []);
   const [colors, setColors] = useState<string[]>(initialData?.colors || []);
-  const [imagesText, setImagesText] = useState(initialData?.images.join('\n') || '');
+  const [imageUrls, setImageUrls] = useState<string[]>(initialData?.images || []);
   const [isActive, setIsActive] = useState(initialData ? initialData.isActive : true);
 
   const [loading, setLoading] = useState(false);
@@ -70,12 +73,7 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
     const parsedPrice = parseFloat(price);
     const parsedCompare = compareAtPrice ? parseFloat(compareAtPrice) : null;
     const parsedStock = parseInt(stockQuantity, 10);
-    const parsedImages = imagesText
-      .split('\n')
-      .map((url) => url.trim())
-      .filter((url) => url.length > 0);
 
-    // Frontend validations
     if (!name) return setError('Product name is required');
     if (!description || description.length < 10)
       return setError('Description must be at least 10 characters');
@@ -84,7 +82,19 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
     if (!categoryId) return setError('Please select a category');
     if (sizes.length === 0) return setError('Select at least one size variant');
     if (colors.length === 0) return setError('Select at least one color variant');
-    if (parsedImages.length === 0) return setError('Provide at least one image URL');
+
+    if (imageUploadRef.current?.hasPending()) {
+      setLoading(true);
+      setError('Uploading images, please wait...');
+      const ok = await imageUploadRef.current.uploadPending();
+      if (!ok) {
+        setError('Image upload failed. Please try again.');
+        setLoading(false);
+        return;
+      }
+    }
+
+    if (imageUrls.length === 0) return setError('Provide at least one image');
 
     setLoading(true);
     try {
@@ -103,7 +113,7 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
           categoryId,
           sizes,
           colors,
-          images: parsedImages,
+          images: imageUrls,
           isActive,
         }),
       });
@@ -211,7 +221,6 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
             </div>
           </div>
 
-          {/* Sizes Checkboxes */}
           <div className="space-y-2">
             <Label>Sizes</Label>
             <div className="flex flex-wrap gap-2">
@@ -235,7 +244,6 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
             </div>
           </div>
 
-          {/* Colors Checkboxes */}
           <div className="space-y-2">
             <Label>Colors</Label>
             <div className="flex flex-wrap gap-2">
@@ -259,17 +267,13 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="images">Product Images (URLs, one per line)</Label>
-            <Textarea
-              id="images"
-              placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"
-              value={imagesText}
-              onChange={(e) => setImagesText(e.target.value)}
-              rows={3}
-              required
-            />
-          </div>
+          <ImageUpload
+            ref={imageUploadRef}
+            existingImages={imageUrls}
+            onImagesChange={setImageUrls}
+            maxImages={5}
+            folder="shopmyuniform/products"
+          />
 
           <div className="flex items-center space-x-2 rounded-lg border bg-card p-3 shadow-xs max-w-[200px]">
             <input
@@ -291,7 +295,7 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
             </Button>
           </Link>
           <Button type="submit" disabled={loading} className="gap-2 font-semibold">
-            <Save className="h-4 w-4" />
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {loading ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Product'}
           </Button>
         </CardFooter>
