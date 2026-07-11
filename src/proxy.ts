@@ -110,11 +110,21 @@ export async function proxy(request: NextRequest) {
   }
 
   // Retrieve and decode the JWT session token
+  const isHttps =
+    request.headers.get('x-forwarded-proto') === 'https' || request.nextUrl.protocol === 'https:';
+
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+
   const token = await getToken({
     req: request,
-    secret: process.env.NEXTAUTH_SECRET,
-    secureCookie: request.nextUrl.protocol === 'https:',
+    secret,
+    secureCookie: isHttps,
   });
+
+  // Debug logging for session tracking in Vercel logs
+  console.log(
+    `[Proxy Log] Path: ${pathname} | Secure: ${isHttps} | Has Secret: ${!!secret} | Session Found: ${!!token}`
+  );
 
   const isProtected = protectedRoutes.some(
     (route) => pathname === route || pathname.startsWith(route + '/')
