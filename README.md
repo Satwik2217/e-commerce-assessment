@@ -167,7 +167,7 @@ npm run test
 ## 🚀 Production Deployment
 
 ### Live Demo
-**Deployment URL:** [https://shopmyuniform.vercel.app](https://shopmyuniform.vercel.app) *(update after deployment)*
+**Deployment URL:** [https://e-commerce-assessment-z3ca.vercel.app/](https://e-commerce-assessment-z3ca.vercel.app/)
 
 ### Deployment Architecture
 
@@ -198,7 +198,7 @@ Set these in your Vercel dashboard under **Settings → Environment Variables**:
 | Variable | Source | Description |
 |----------|--------|-------------|
 | `DATABASE_URL` | Neon Dashboard | Neon pooled connection string with `?pgbouncer=true` |
-| `NEXTAUTH_URL` | Your Vercel URL | `https://your-app.vercel.app` |
+| `NEXTAUTH_URL` | Your Vercel URL | `https://e-commerce-assessment-z3ca.vercel.app/` |
 | `NEXTAUTH_SECRET` | Generated | `openssl rand -base64 32` |
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary Dashboard | Your cloud name |
 | `CLOUDINARY_API_KEY` | Cloudinary Dashboard | Your API key |
