@@ -4,7 +4,17 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { loginSchema } from '@/lib/validations';
 
+// Dynamically resolve deployment URL on Vercel preview/production domains
+if (process.env.VERCEL === '1') {
+  if (process.env.VERCEL_URL) {
+    process.env.AUTH_URL = `https://${process.env.VERCEL_URL}`;
+  }
+  // Delete NEXTAUTH_URL to prevent localhost fallback overrides
+  delete process.env.NEXTAUTH_URL;
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   providers: [
     Credentials({
       name: 'credentials',

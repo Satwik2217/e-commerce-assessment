@@ -122,7 +122,7 @@ export function Navbar() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive cursor-pointer py-2"
-                  onClick={() => signOut({ callbackUrl: '/' })}
+                  onClick={() => signOut({ redirectTo: '/' })}
                 >
                   Sign Out
                 </DropdownMenuItem>
@@ -206,7 +206,7 @@ export function Navbar() {
                     <button
                       onClick={() => {
                         setOpen(false);
-                        signOut({ callbackUrl: '/' });
+                        signOut({ redirectTo: '/' });
                       }}
                       className="w-full text-center text-xs font-bold uppercase tracking-wider text-destructive hover:bg-destructive/5 py-3 rounded-xl border border-destructive/20 transition-all"
                     >
