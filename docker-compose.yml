@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: fashion-ecommerce-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: fashion_ecommerce
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fashion-ecommerce-app
+    restart: always
+    ports:
+      - '3000:3000'
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/fashion_ecommerce
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-f3f6c8d76d498b3c66f7d0a649efbb03}
+    depends_on:
+      - postgres
+    # Ensure database is pushed and seeded before running Next.js app in production
+    command: sh -c "npx prisma db push && npm start"
+
+volumes:
+  pgdata:
