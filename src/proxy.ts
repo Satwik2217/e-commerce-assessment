@@ -115,15 +115,43 @@ export async function proxy(request: NextRequest) {
 
   const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 
-  const token = await getToken({
-    req: request,
-    secret,
-    secureCookie: isHttps,
-  });
+  // Try all possible cookie names and secure flags to decode the session token on Vercel and local environments
+  const cookieCandidates = [
+    { name: '__Secure-authjs.session-token', secure: true },
+    { name: 'authjs.session-token', secure: false },
+    { name: '__Secure-next-auth.session-token', secure: true },
+    { name: 'next-auth.session-token', secure: false },
+  ];
+
+  // Prioritize candidates based on the request protocol
+  if (!isHttps) {
+    cookieCandidates.sort((a, b) => (a.secure === b.secure ? 0 : a.secure ? 1 : -1));
+  }
+
+  let token = null;
+  let resolvedCookieName = '';
+  for (const candidate of cookieCandidates) {
+    try {
+      token = await getToken({
+        req: request,
+        secret,
+        cookieName: candidate.name,
+        secureCookie: candidate.secure,
+      });
+      if (token) {
+        resolvedCookieName = candidate.name;
+        break;
+      }
+    } catch (err) {
+      console.warn(`[Proxy Log] Failed to retrieve token with candidate ${candidate.name}:`, err);
+    }
+  }
 
   // Debug logging for session tracking in Vercel logs
   console.log(
-    `[Proxy Log] Path: ${pathname} | Secure: ${isHttps} | Has Secret: ${!!secret} | Session Found: ${!!token}`
+    `[Proxy Log] Path: ${pathname} | Secure: ${isHttps} | Has Secret: ${!!secret} | Session Found: ${!!token}${
+      token ? ` | Cookie: ${resolvedCookieName}` : ''
+    }`
   );
 
   const isProtected = protectedRoutes.some(
