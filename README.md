@@ -84,8 +84,8 @@ Without Cloudinary credentials, the admin forms still work but image uploads wil
 
 ### 5. Start the PostgreSQL Database
 
-#### Option A: Using Docker (Recommended)
-If you have Docker installed, you can spin up the PostgreSQL database container with one command:
+#### Option A: Using Docker (Recommended for DB only)
+If you want to run PostgreSQL inside a Docker container while running the Next.js app locally on your host machine:
 ```bash
 docker compose up -d postgres
 ```
@@ -96,25 +96,40 @@ If you prefer running PostgreSQL natively on your machine:
 2. Create an empty database named `fashion_ecommerce`.
 3. Verify your `.env` file's `DATABASE_URL` matches your local credentials.
 
+#### Option C: Running the Entire Application via Docker
+If you want to spin up both the database and the Next.js application inside Docker containers (without running node/npm locally on your host):
+1. Start the container group:
+   ```bash
+   docker compose up --build -d
+   ```
+2. Wait a few seconds for services to initialize, then run the database seeder inside the running container:
+   ```bash
+   docker compose exec web npm run db:seed
+   ```
+3. Access the web app in your browser at `http://localhost:3000`.
+
 ---
 
-### 6. Install Dependencies & Seed Database
-With your database running, install Node modules, sync the Prisma schemas, and run the database seeder to populate products, categories, coupons, and test user accounts:
+### 6. Install Dependencies & Seed Database (For Options A & B)
+If you are running the Next.js app locally on your machine, install Node modules, compile the database schema models, and run the seeder:
 
 ```bash
-# Install node modules
+# Install node modules (also generates Prisma client via postinstall hook)
 npm install
 
-# Push the schema and apply indexes
+# (Troubleshooting) If Prisma clients fail to resolve, run client code generation explicitly:
+npx prisma generate
+
+# Sync the schema structures and indices on your database
 npm run db:push
 
-# Seed categories, products, coupons, and users
+# Populate products, categories, coupons, and test accounts
 npm run db:seed
 ```
 
 ---
 
-### 7. Start the Development Server
+### 7. Start the Development Server (For Options A & B)
 Launch the development server using Next.js Turbopack:
 ```bash
 npm run dev
@@ -272,6 +287,16 @@ fashion-ecommerce/
 
 ---
 
+## ⚠️ Known Limitations
+
+During engineering evaluation, the following implementation boundaries and design limitations were documented:
+1. **Mock Payment Gateway:** The checkout route uses a simulated payment framework (sandbox context in `/api/checkout`). No integrations with payment merchants like Stripe or Razorpay are active.
+2. **Upstash Redis edge-proxy Rate-limiting Fallback:** If serverless Redis access credentials (`REDIS_URL` and `REDIS_TOKEN`) are not provided in the environment variables, the proxy fallback system tracks client IP quotas using short-lived in-memory maps inside the serverless edge process.
+3. **Cloudinary Upload Dependencies:** If Cloudinary keys are omitted inside `.env`, custom catalog creations/edits in the admin console will not support media uploads (they fallback to standard placeholders). Seeded default products will continue rendering Unsplash images correctly.
+4. **Window Alerts in Admin Status Updater:** The client-side status controller ([order-status-updater.tsx](file:///c:/Users/satwi/OneDrive/Desktop/fashion-ecommerce/src/components/admin/order-status-updater.tsx#L35)) fires native browser alert popups on error states rather than invoking the custom Toast alerts system.
+
+---
+
 ## 🤖 LLM/AI Usage Disclosure
 
 This project was built and audited leveraging Advanced AI coding assistants (Gemini 3.5 Flash and Claude 3.5 Sonnet) under full human supervision:
@@ -281,3 +306,4 @@ This project was built and audited leveraging Advanced AI coding assistants (Gem
 3. **Database Rename Migration:** Leveraged AI to rename the Wishlist `id` DateTime column to `createdAt` and dynamically update references.
 4. **Next.js 16 proxy Conversion:** Used AI to migrate the deprecated middleware convention to the modern `src/proxy.ts` setup with Next.js 16-specific exports and write a conditional Redis rate limiter.
 5. **Testing suite:** AI aided in generating native test scripts to validate registration, checkout, and custom formatting helper functions.
+
